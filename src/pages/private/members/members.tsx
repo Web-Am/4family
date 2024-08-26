@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { NavBar } from "../../../components/navbar";
-import { addCategory, addMember, deleteCategory, getMembers, updateCategory } from "../../../services/api/firebase/api";
+import { addCategory, addMember, deleteCategory, deleteMember, getMembers, updateCategory, updateMember } from "../../../services/api/firebase/api";
 import { BasicModel } from "../home/home";
 import { useStateStore } from "../../../services/zustand/zustand";
 import { findLastWithMaxId } from "../../../services/utils/utils";
@@ -31,7 +31,7 @@ export function Members() {
       memberSelected.title = newTitle;
 
       console.log("updating", memberSelected)
-      updateCategory(memberSelected, currentFamily)
+      updateMember(memberSelected, currentFamily)
         .finally(() => getMembers(currentFamily).then(l => { setMembers(l); setActiveTab("list") }));
     }
   }
@@ -46,10 +46,12 @@ export function Members() {
 
   const onDelete = (element: any) => {
     if (window.confirm("convinto di cancellare il dato?"))
-      deleteCategory(element, currentFamily)
+      deleteMember(element, currentFamily)
         .finally(() => getMembers(currentFamily).then(l => { setMembers(l) }));
   }
 
+
+  console.log(members);
   return (
     <div className="min-h-screen bg-gray-100">
 
