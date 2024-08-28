@@ -246,18 +246,18 @@ export const addFamilyMember = (email: string, family: string) => {
 // EVENT
 //
 
-export const getEvents = (year: string, month: string) => {
+export const getEvents = (year: string, month: string, family: string) => {
     return new Promise<any>((resolve, reject) => {
         month = (month.toString().length == 1 ? "0" + month : month)
-        getElements("BEXPO/EVENTS/" + year + "/" + month)
+        getElements(family + "/EVENTS/" + year + "/" + month)
             .then((list) => { resolve(list); })
             .catch((ex) => { reject(ex); })
     });
 };
 
-export const addEvent = (object: any) => {
+export const addEvent = (object: any, family: string) => {
     return new Promise<any>((resolve, reject) => {
-        pushElement("BEXPO/EVENTS/" + moment(object.at, "DDMMYYYY").format("YYYY") + "/" + moment(object.at, "DDMMYYYY").format("MM"), object)
+        pushElement(family + "/EVENTS/" + moment(object.at, "DDMMYYYY").format("YYYY") + "/" + moment(object.at, "DDMMYYYY").format("MM"), object)
             .then((list) => { resolve(list); })
             .catch((ex) => { reject(ex); })
     });

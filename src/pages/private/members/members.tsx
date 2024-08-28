@@ -4,6 +4,7 @@ import { addCategory, addMember, deleteCategory, deleteMember, getMembers, updat
 import { BasicModel } from "../home/home";
 import { useStateStore } from "../../../services/zustand/zustand";
 import { findLastWithMaxId } from "../../../services/utils/utils";
+import useEffectOnce from "../../../services/hooks/useEffectOnce";
 
 export function Members() {
 
@@ -14,23 +15,24 @@ export function Members() {
   const currentFamily = useStateStore((state) => state.currentFamily);
   const [newID, setNewID] = useState(0);
   const [newTitle, setNewTitle] = useState('');
+  const [newIcon, setNewIcon] = useState("");
   const [newDescription, setNewDescription] = useState('');
 
-  useEffect(() => {
+  useEffectOnce(() => {
     getMembers(currentFamily).then(l => { setMembers(l) });
-  }, [])
+  })
 
   const onAdd = () => {
     if (newID == 0) {
       const lastUserWithMaxId = findLastWithMaxId(members, "id");
-      addMember({ id: lastUserWithMaxId ? lastUserWithMaxId.id + 1 : 1, title: newTitle, desc: newDescription }, currentFamily)
+      addMember({ id: lastUserWithMaxId ? lastUserWithMaxId.id + 1 : 1, title: newTitle.toUpperCase(), desc: newDescription, icon: newIcon }, currentFamily)
         .finally(() => getMembers(currentFamily).then(l => { setMembers(l); setActiveTab("list") }));
     }
     else {
       memberSelected.desc = newDescription;
-      memberSelected.title = newTitle;
+      memberSelected.title = newTitle.toUpperCase();
+      memberSelected.icon = newIcon;
 
-      console.log("updating", memberSelected)
       updateMember(memberSelected, currentFamily)
         .finally(() => getMembers(currentFamily).then(l => { setMembers(l); setActiveTab("list") }));
     }
@@ -41,6 +43,7 @@ export function Members() {
     setNewID(bm.id);
     setNewTitle(bm.title);
     setNewDescription(bm.desc);
+    setNewIcon(bm.icon);
     setActiveTab('add');
   }
 
@@ -51,21 +54,21 @@ export function Members() {
   }
 
 
-  console.log(members);
   return (
     <div className="min-h-screen bg-gray-100">
 
       <NavBar />
 
-      <div className="container mx-auto py-8">
+      <div className="container mx-auto py-8 px-6 md:px-0">
 
         <div className="flex mb-4">
           <button
             className={`px-4 py-2 rounded-md ${activeTab === 'list' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
             onClick={() => {
-              setNewID(0); setActiveTab('list');
+              setNewID(0);
+              setActiveTab('list');
             }}>
-            Lista famiglia
+            Famiglia
           </button>
           <button
             className={`px-4 py-2 rounded-md ${activeTab === 'add' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
@@ -73,9 +76,10 @@ export function Members() {
               setNewID(0);
               setNewTitle("");
               setNewDescription("");
+              setNewIcon("");
               setActiveTab('add');
             }}>
-            {newID == 0 ? "Aggiungi membro famiglia" : "Modifica membro famiglia"}
+            {newID == 0 ? "Aggiungi" : "Modifica"}
           </button>
         </div>
 
@@ -112,6 +116,16 @@ export function Members() {
               <div className="my-4">
                 <h3 className="font-medium text-2xl text-gray-900">Descrizione</h3>
                 <textarea placeholder="Inserisci una descrizione" value={newDescription} onChange={e => setNewDescription(e.target.value)} className="input input-bordered w-full max-w-lg my-3 p-3 min-h-[160px]" />
+              </div>
+              <div className="my-4">
+                <h3 className="font-medium text-2xl text-gray-900">Icona</h3>
+                {
+                  ["icons/man.svg", "icons/woman.svg", "icons/baby-man.svg", "icons/baby-woman.svg"]?.map((el, idx) => {
+                    return <button key={idx} value={el} onClick={e => setNewIcon(el)} type="button">
+                      <img src={el} className={"w-28 hover:bg-gray-100 rounded mr-4" + (newIcon == el ? " bg-gray-300" : "")} />
+                    </button>
+                  })
+                }
               </div>
               <button
                 type="button" onClick={onAdd} disabled={newTitle?.length == 0 || newDescription?.length == 0}

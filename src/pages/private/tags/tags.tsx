@@ -23,12 +23,12 @@ export function Tags() {
   const onAdd = () => {
     if (newTagID == 0) {
       const lastUserWithMaxId = findLastWithMaxId(tags, "id");
-      addTag({ id: lastUserWithMaxId ? lastUserWithMaxId.id + 1 : 1, title: newTagTitle, desc: newTagDescription }, currentFamily)
+      addTag({ id: lastUserWithMaxId ? lastUserWithMaxId.id + 1 : 1, title: newTagTitle.toUpperCase(), desc: newTagDescription }, currentFamily)
         .finally(() => getTags(currentFamily).then(l => { setTags(l); setActiveTab("list") }));
     }
     else {
       tagSelected.desc = newTagDescription;
-      tagSelected.title = newTagTitle;
+      tagSelected.title = newTagTitle.toUpperCase();
 
       console.log("updating", tagSelected)
       updateTag(tagSelected, currentFamily)
@@ -55,7 +55,7 @@ export function Tags() {
 
       <NavBar />
 
-      <div className="container mx-auto py-8">
+      <div className="container mx-auto py-8 px-6 md:px-0">
 
         <div className="flex mb-4">
           <button
@@ -63,7 +63,7 @@ export function Tags() {
             onClick={() => {
               setNewTagID(0); setActiveTab('list');
             }}>
-            Lista Tags
+            Tags
           </button>
           <button
             className={`px-4 py-2 rounded-md ${activeTab === 'add' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
@@ -73,7 +73,7 @@ export function Tags() {
               setNewTagDescription("");
               setActiveTab('add');
             }}>
-            {newTagID == 0 ? "Aggiungi Tag" : "Modifica Tag"}
+            {newTagID == 0 ? "Aggiungi" : "Modifica"}
           </button>
         </div>
 

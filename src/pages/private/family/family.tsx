@@ -10,6 +10,7 @@ export function Family() {
 
   const [members, setMembers] = useState<MemberModel[]>([]);
   const [title, setTitle] = useState("");
+  const [icon, setIcon] = useState(-1);
   const [desc, setDesc] = useState("");
   const currentFamily = useStateStore((state) => state.currentFamily);
 
@@ -68,8 +69,18 @@ export function Family() {
               <h3 className="font-medium text-2xl text-gray-900">Descrizione</h3>
               <textarea placeholder="Inserisci una descrizione" value={desc} onChange={e => setDesc(e.target.value)} className="input input-bordered w-full max-w-lg my-3 p-3 min-h-[160px]" />
             </div>
+            <div className="my-4">
+              <h3 className="font-medium text-2xl text-gray-900">Icona</h3>
+              <select onChange={e => { setIcon(Number(e.target.value)) }} value={icon} className="select select-bordered w-full max-w-lg my-3">
+                <option value={-1} >NESSUNO</option>
+                {
+                  ["assets/man.svg", "assets/man.svg",]?.map((el, idx) => {
+                    return <option key={idx} value={el}><img src={el} /></option>
+                  })
+                }
+              </select>
+            </div>
             <button onClick={onAdd} className="btn btn-primary " disabled={title.length == 0 || desc.length == 0}>aggiungi</button>
-
           </div>
         </div>
       </div>

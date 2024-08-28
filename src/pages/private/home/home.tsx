@@ -2,7 +2,7 @@ import moment from "moment";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { NavBar } from "../../../components/navbar";
-import { getCategories, getEvents } from "../../../services/api/firebase/api";
+import { getCategories, getEvents, getMembers, getTags } from "../../../services/api/firebase/api";
 import useEffectOnce from "../../../services/hooks/useEffectOnce";
 import { useStateStore } from "../../../services/zustand/zustand";
 
@@ -25,13 +25,14 @@ const Day = (props: any) => {
 
 const Events = (props: any) => {
 
-  const { events, categories } = props;
+  const { events, categories, tags } = props;
 
   return <div className="w-full overflow-y-auto ">
     {
       events?.map((el, idx) => {
 
         const cat = categories.find(x => x.id == el.category);
+        const tag = tags.find(x => x.id == el.tag);
 
         console.log("cat", categories, cat);
 
@@ -52,11 +53,9 @@ const Events = (props: any) => {
               </div>
 
               <div className="absolute top-0 right-6">
-                <div className="">
-
-                  <span className="bg-gray-300 px-3 rounded-lg font-medium text-sm text-gray-900">Andrea-{el.createdfor}</span>
-                  <span className="bg-green-400 px-3 rounded-lg font-medium text-sm text-gray-900">{cat?.title}</span>
-
+                <div>
+                  {tag?.title && <span className="bg-yellow-600 p-1 rounded-lg font-medium text-sm text-white mx-3">{tag?.title}</span>}
+                  {cat?.title && <span className="bg-green-600 p-1 rounded-lg font-medium text-sm text-gray-900">{cat?.title}</span>}
                 </div>
               </div>
             </div>
@@ -126,6 +125,7 @@ export class BasicModel {
   id: number = -1;
   title: string = "";
   desc: string = "";
+  icon: string = "";
 }
 
 export class MemberModel {
@@ -142,17 +142,21 @@ export function Home() {
   const MAX_DATE = moment().add(100, 'years'); // Adjust as needed
   const MIN_DATE = moment().subtract(100, 'years'); // Adjust as needed
   const [events, setEvents] = useState<EventModel[]>([]);
+  const [members, setMembers] = useState<BasicModel[]>([]);
+  const [tags, setTags] = useState<BasicModel[]>([]);
   const [categories, setCategories] = useState<BasicModel[]>([]);
   const currentFamily = useStateStore((state) => state.currentFamily);
 
   //https://console.firebase.google.com/u/3/project/family-72d51/database/family-72d51-default-rtdb/data
 
   useEffectOnce(() => {
-    getCategories(currentFamily).then(l => { console.log("l", l); setCategories(l) });
+    getCategories(currentFamily).then(l => { setCategories(l) });
+    getTags(currentFamily).then(l => { setTags(l) });
+    getMembers(currentFamily).then(l => { setMembers(l) });
   })
 
   useEffect(() => {
-    getEvents(current.format("YYYY"), current.format("MM")).then(l => setEvents(l));
+    getEvents(current.format("YYYY"), current.format("MM"), currentFamily).then(l => setEvents(l));
   }, [current.month(), current.year()])
 
   const onAddMonth = (value: number) => {
@@ -160,10 +164,6 @@ export function Home() {
       const newDate = old.clone().add(value, 'month');
       return newDate.isBefore(MIN_DATE) ? MIN_DATE : newDate.isAfter(MAX_DATE) ? MAX_DATE : newDate;
     });
-  }
-
-  const onAddYear = (value: number) => {
-    setCurrent(old => old.add(value, "year"));
   }
 
   const MemberLink = (props: any) => {
@@ -179,6 +179,7 @@ export function Home() {
   }
 
   const monthsDescription = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
+  const monthDisplay = monthsDescription[Number(current.format("MM")) - 1] + " " + (current.year() != moment().year() ? current.year() : "");
 
   return <div className="relative gradient-grigio-bluastro h-full">
 
@@ -192,100 +193,28 @@ export function Home() {
           mi<span className="text-red-800">l</span>
           y
         </span>
-        <div className="grid grid-cols-2 gap-8 p-14">
-          <MemberLink route="/personal" name="Andrea" desc="Il bravo toso" icon="icons/man.svg" />
-          <MemberLink route="/personal" name="Michela" desc="La combina guai" icon="icons/woman.svg" />
-          <MemberLink route="/personal" name="Vanessa" desc="La cea" icon="icons/man.svg" />
-          <MemberLink route="/personal" name="Ryan" desc="Il capo" icon="icons/man.svg" />
+        <div className="grid grid-cols-2 gap-8 p-4 lg:p-10 xl:p-14">
+          {
+            members.map((el, idx) => {
+              return <MemberLink key={idx} route={"/member?id=" + el.id} name={el.title} desc={el.desc} icon={el.icon} />
+            })
+          }
         </div>
       </div>
 
       <div className="col-span-3 mx-autow-full">
         <div className="flex flex-row justify-center gap-10 align-middle p-10">
           <span className="btn btn-ghost my-auto font-medium text-gray-900 hover:scale-110 cursor-pointer h-auto" onClick={e => { onAddMonth(-1) }}><i className="fa-solid fa-xl fa-arrow-left"></i></span>
-          <span className="font-medium text-3xl text-gray-900">{monthsDescription[Number(current.format("MM")) - 1]}</span>
+          <span className="font-medium text-3xl text-gray-900 text-center" style={{ width: 170 }}>{monthDisplay}</span>
           <span className="btn btn-ghost my-auto font-medium text-gray-900 hover:scale-110 cursor-pointer h-auto" onClick={e => { onAddMonth(1) }}><i className="fa-solid fa-xl fa-arrow-right"></i></span>
         </div>
-        <Events events={events} categories={categories} />
+        <Events events={events} tags={tags} categories={categories} />
       </div>
 
       <div className="cols-1 text-center mt-32">
         <Link to="/create" className="fade-in-low btn btn-circle btn-outline self-center size-40 lg:size-44 hover:scale-90 cursor-pointer">
           <span className="text-5xl">crea</span>
         </Link>
-      </div>
-    </div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    <div className="p-10 hidden">
-      <div className="flex flex-col lg:flex-row justify-between align-middle gap-4 mb-6">
-        <span className="text-6xl lg:text-9xl flex align-bottom self-center">
-          The F<span className="text-red-800">a</span>
-          mi<span className="text-red-800">l</span>
-          y<span className="text-xl align-baseline h-full hidden">eventi</span>
-        </span>
-
-
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 self-center">
-          <Link to="/personal" className="bg-white rounded-lg shadow-md p-4 hover:scale-90 cursor-pointer">
-            <img src="icons/man.svg" alt="Immagine" className="rounded-t-lg max-w-[120px] mx-auto" />
-            <div className="mt-4">
-              <h3 className="text-gray-700 text-lg font-bold">Andrea</h3>
-              <p className="text-gray-500">Il bravo toso</p>
-            </div>
-          </Link>
-          <Link to="/personal" className="bg-white rounded-lg shadow-md p-4 hover:scale-90 cursor-pointer">
-            <img src="icons/woman.svg" alt="Immagine" className="rounded-t-lg max-w-[120px] mx-auto" />
-            <div className="mt-4">
-              <h3 className="text-gray-700 text-lg font-bold">Michela</h3>
-              <p className="text-gray-500">La combina guai</p>
-            </div>
-          </Link>
-          <Link to="/personal" className="bg-white rounded-lg shadow-md p-4 hover:scale-90 cursor-pointer">
-            <img src="icons/baby-woman.svg" alt="Immagine" className="rounded-t-lg max-w-[120px] mx-auto" />
-            <div className="mt-4">
-              <h3 className="text-gray-700 text-lg font-bold">Vanessa</h3>
-              <p className="text-gray-500">La cea</p>
-            </div>
-          </Link>
-          <Link to="/personal" className="bg-white rounded-lg shadow-md p-4 hover:scale-90 cursor-pointer">
-            <img src="icons/baby-man.svg" alt="Immagine" className="rounded-t-lg max-w-[120px] mx-auto" />
-            <div className="mt-4">
-              <h3 className="text-gray-700 text-lg font-bold">Mario</h3>
-              <p className="text-gray-500">El comandante</p>
-            </div>
-          </Link>
-        </div>
-
-        <Link to="/create" className="btn btn-circle btn-outline self-center  size-40 lg:size-44 hover:scale-90 cursor-pointer">
-          <span className="text-5xl">crea</span>
-        </Link>
-      </div>
-
-      <div className="w-full">
-        <div className="container mx-auto grid grid-cols-1 md:grid-cols-3">
-
-          <div className="col-span-1">
-            <Calendar year={Number(current.format("YYYY"))} addYear={onAddYear} addMonth={onAddMonth} month={Number(current.format("MM"))} />
-          </div>
-
-          <div className="col-span-2">
-            <Events events={events} categories={categories} />
-          </div>
-
-        </div>
       </div>
     </div>
   </div >

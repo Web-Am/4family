@@ -18,11 +18,11 @@ export const NavBar = () => {
           <img alt="Tailwind CSS Navbar component" src="/icons/man.svg" />
         </div>
       </div>
-      <ul tabIndex={0} className="mt-3 z-[1] p-2 shadow menu menu-sm dropdown-content bg-base-100 rounded-box w-52 divide-y divide-gray-100">
+      <ul tabIndex={0} className="mt-3 z-[1] p-2  shadow menu menu-sm dropdown-content bg-base-100 rounded-box w-52 divide-y divide-gray-100">
 
-        <li className="py-4">
-          <Link to="/me">
-            <span className="text-xl">profilo</span>
+        <li className="py-4 hidden">
+          <Link to="/dashboard">
+            <span className="text-xl text-red-600 py-10">DASHBOARD</span>
           </Link>
         </li>
         <li className="py-4">
@@ -36,16 +36,16 @@ export const NavBar = () => {
           </Link>
         </li>
         <li className="py-4">
-          <Link to="/dashboard">
-            <span className="text-xl">dashboard</span>
-          </Link>
-        </li>
-        <li className="py-4">
           <Link to="/members">
             <span className="text-xl">famiglia</span>
           </Link>
         </li>
         <li className="py-4">
+          <Link to="/me">
+            <span className="text-xl">profilo</span>
+          </Link>
+        </li>
+        <li className="py-4 hidden">
           <button onClick={onLogout}>
             <span className="text-xl">esci</span>
           </button>

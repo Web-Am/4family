@@ -12,6 +12,7 @@ import { useStateStore } from "./services/zustand/zustand";
 import { Me } from "./pages/private/me/me";
 import { Tags } from "./pages/private/tags/tags";
 import { Members } from "./pages/private/members/members";
+import { MemberInfo } from "./pages/private/member/member";
 
 const RoutesManagerPrivate = () => {
   return <Routes>
@@ -19,9 +20,11 @@ const RoutesManagerPrivate = () => {
     <Route path="/create" element={<Create />} />
     <Route path="/dashboard" element={<Dashboard />} />
     <Route path="/members" element={<Members />} />
+    <Route path="/member" element={<MemberInfo />} />
     <Route path="/categories" element={<Categories />} />
     <Route path="/family" element={<Family />} />
     <Route path="/tags" element={<Tags />} />
+    <Route path="/me" element={<Me />} />
     <Route path="/me" element={<Me />} />
     <Route path="*" element={<Landing />} />
   </Routes>

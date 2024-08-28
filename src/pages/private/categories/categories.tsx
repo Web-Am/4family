@@ -23,12 +23,12 @@ export function Categories() {
   const onAdd = () => {
     if (newCategoryID == 0) {
       const lastUserWithMaxId = findLastWithMaxId(categories, "id");
-      addCategory({ id: lastUserWithMaxId ? lastUserWithMaxId.id + 1 : 1, title: newCategoryTitle, desc: newCategoryDescription }, currentFamily)
+      addCategory({ id: lastUserWithMaxId ? lastUserWithMaxId.id + 1 : 1, title: newCategoryTitle.toUpperCase(), desc: newCategoryDescription }, currentFamily)
         .finally(() => getCategories(currentFamily).then(l => { setCategories(l); setActiveTab("list") }));
     }
     else {
       categoriySelected.desc = newCategoryDescription;
-      categoriySelected.title = newCategoryTitle;
+      categoriySelected.title = newCategoryTitle.toUpperCase();
 
       console.log("updating", categoriySelected)
       updateCategory(categoriySelected, currentFamily)
@@ -55,7 +55,7 @@ export function Categories() {
 
       <NavBar />
 
-      <div className="container mx-auto py-8">
+      <div className="container mx-auto py-8 px-6 md:px-0">
 
         <div className="flex mb-4">
           <button
@@ -63,7 +63,7 @@ export function Categories() {
             onClick={() => {
               setNewCategoryID(0); setActiveTab('list');
             }}>
-            Lista Categorie
+            Categorie
           </button>
           <button
             className={`px-4 py-2 rounded-md ${activeTab === 'add' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
@@ -73,7 +73,7 @@ export function Categories() {
               setNewCategoryDescription("");
               setActiveTab('add');
             }}>
-            {newCategoryID == 0 ? "Aggiungi Categoria" : "Modifica Categoria"}
+            {newCategoryID == 0 ? "Aggiungi" : "Modifica"}
           </button>
         </div>
 
