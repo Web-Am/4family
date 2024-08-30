@@ -27,7 +27,8 @@ export function Create() {
     setIsLoading(true);
 
     setTimeout(() => {
-      (document.getElementById('my_modal_1') as any).showModal();
+      if (document.getElementById('my_modal_1'))
+        (document.getElementById('my_modal_1') as any).showModal();
       setIsLoading(false);
     }, 1000);
 

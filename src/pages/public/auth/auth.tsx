@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { addFamilyMember, addMember, getFamilyMember } from "../../../services/api/firebase/api";
-import { onSignInWithGoogle, onSignOutWithGoogle } from "../../../services/api/firebase/useFirebase";
+import { addFamilyMember, addMember, createSystem, getFamilyMember } from "../../../services/api/firebase/api";
+import { AccountModel, onSignInWithGoogle, onSignOutWithGoogle } from "../../../services/api/firebase/useFirebase";
 import { useStateStore } from "../../../services/zustand/zustand";
 import { useNavigate } from 'react-router-dom';
 import { makeid } from "../../../services/utils/utils";
@@ -25,17 +25,24 @@ export function Auth() {
                         if (sy == "") {
                             let code = makeid(5).toUpperCase();
                             console.log("new system: " + code)
-                            addFamilyMember(user.email, code)
-                                .then(() => {
 
-                                    getFamilyMember(user.email).then(sy => {
-                                        console.log("system found: " + sy)
-                                        account.system = sy;
-                                        setAccount(account);
-                                        console.log("Uppdate account", account);
-                                        navigate('/');
-                                    });
+                            createSystem(code)
+                                .then((createSystem) => {
+                                    let account0 = new AccountModel();
+                                    account0.system = code;
+                                    setAccount(account0);
+
+                                    addFamilyMember(user.email, code)
+                                        .then(() => {
+
+                                            setTimeout(() => {
+                                                navigate('/');
+
+                                            }, 1200);
+                                        });
                                 });
+
+
                         }
                     })
                     .catch(notfound => {

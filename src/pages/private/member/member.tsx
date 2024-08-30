@@ -8,7 +8,6 @@ import useEffectOnce from "../../../services/hooks/useEffectOnce";
 
 export function MemberInfo() {
 
-
   return (
     <div className="min-h-screen bg-gray-100">
 

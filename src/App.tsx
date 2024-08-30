@@ -50,6 +50,7 @@ function App() {
   const { user, isLoading } = useStateChangeWithGoogle();
 
   useEffect(() => {
+    console.log(user);
     setAccount(user);
   }, [user]);
 

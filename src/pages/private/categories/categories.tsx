@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { NavBar } from "../../../components/navbar";
-import { addCategory, deleteCategory, getCategories, updateCategory } from "../../../services/api/firebase/api";
+import { addCategory, createSystem, deleteCategory, getCategories, updateCategory } from "../../../services/api/firebase/api";
 import { BasicModel } from "../home/home";
 import { useStateStore } from "../../../services/zustand/zustand";
 import { findLastWithMaxId } from "../../../services/utils/utils";

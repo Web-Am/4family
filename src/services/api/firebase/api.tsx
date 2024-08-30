@@ -241,6 +241,14 @@ export const addFamilyMember = (email: string, family: string) => {
     });
 };
 
+export const createSystem = (family: string) => {
+    return new Promise<any>((resolve, reject) => {
+        pushValue(family, { CATEGORIES: [], EVENTS: [], MEMBERS: [], TAGS: [], INI: true })
+            .then((list) => { resolve(list); })
+            .catch((ex) => { reject(ex); })
+    });
+};
+
 
 //
 // EVENT
