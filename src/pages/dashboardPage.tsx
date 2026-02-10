@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { get, ref, set } from 'firebase/database';
+import { get, ref } from 'firebase/database';
 import { auth, db } from '../services/firebase/firebase';
 import { Category, EventItem } from '../services/firebase/type';
 import { createCategory } from '../services/firebase/api';
 import { useNavigate } from 'react-router-dom';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import Header from '../components/header';
-import { DiamondPlus, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 interface CategoryWithTotal extends Category {
     total: number;
