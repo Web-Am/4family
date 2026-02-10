@@ -168,7 +168,7 @@ export default function DashboardPage() {
                             </button>
 
                             <button
-                                disabled={newCategory.title.length == 0 || newCategory.desc.length == 0}
+                                disabled={newCategory.title.length === 0 || newCategory.desc.length === 0}
                                 onClick={handleCreateCategory}
                                 className="bg-blue-600 text-white px-4 py-2 rounded-xl disabled:opacity-50">
                                 Crea
