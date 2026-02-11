@@ -2,8 +2,9 @@
 
 import { useNavigate, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
-import { auth } from "../services/firebase/firebase";
 import { House, LogOut } from "lucide-react";
+import { firebaseAuth } from "../firebase/firebase";
+import { useLoadSessionByAuth } from "../hooks/auth/useLoadSessionByAuth";
 
 interface HeaderProps {
     title?: string;
@@ -13,10 +14,14 @@ export default function Header({ title }: HeaderProps) {
     const navigate = useNavigate();
     const location = useLocation();
 
+    const { state: session } = useLoadSessionByAuth();
+    const house = (session && (session as any).house) ? (session as any).house : null;
+
     const isDashboard = location.pathname === "/dashboard";
+    console.log(session);
 
     const handleLogout = async () => {
-        await signOut(auth);
+        await signOut(firebaseAuth);
         navigate("/");
     };
 
@@ -27,7 +32,10 @@ export default function Header({ title }: HeaderProps) {
     return (
         <header className="mb-6 rounded-lg w-full bg-white shadow-md px-6 py-4 flex justify-between items-center sticky top-0 z-50">
             <div className="flex items-center gap-4">
-                <h1 className="text-xl font-bold">{title || "La tua Casa"}</h1>
+                <div>
+                    <h1 className="text-xl font-bold">{title || "La tua Casa"} </h1>
+                    <em className="text-xs">{house?.shareCode}</em>
+                </div>
             </div>
 
             <div className="flex gap-3">

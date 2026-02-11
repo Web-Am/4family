@@ -1,183 +1,151 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { get, ref } from 'firebase/database';
-import { auth, db } from '../services/firebase/firebase';
-import { Category, EventItem } from '../services/firebase/type';
-import { createCategory } from '../services/firebase/api';
-import { useNavigate } from 'react-router-dom';
-import { onAuthStateChanged } from 'firebase/auth';
+import React, { useEffect, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import Header from '../components/header';
 import { Plus } from 'lucide-react';
+import { WithId, DbCategory } from '../firebase/type';
+import { useLoadSessionByAuth } from '../hooks/auth/useLoadSessionByAuth';
+import { useCategories } from '../hooks/categories/useCategories';
+import { useUpsertCategory } from '../hooks/categories/useUpsertCategory';
 
-interface CategoryWithTotal extends Category {
-    total: number;
+
+function cx(...p: Array<string | false | null | undefined>) {
+  return p.filter(Boolean).join(' ');
 }
 
 export default function DashboardPage() {
-    const navigate = useNavigate();
+  const nav = useNavigate();
 
-    const [houseId, setHouseId] = useState<string | null>(null);
-    const [categories, setCategories] = useState<Category[]>([]);
-    const [events, setEvents] = useState<EventItem[]>([]);
-    const [loading, setLoading] = useState(true);
+  // ✅ 1) SEMPRE hooks in cima (ordine fisso)
+  const { state: session } = useLoadSessionByAuth();
 
-    const [showCreate, setShowCreate] = useState(false);
-    const [newCategory, setNewCategory] = useState({ title: '', desc: '' });
+  // ✅ safe params
+  const houseId = session.status === 'ready' ? session.user.houseId : '';
+  const userId = session.status === 'ready' ? session.userId : '';
 
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            if (!user) {
-                window.location.href = '/auth';
-                return;
-            }
+  const { state: catState, categories } = useCategories(houseId);
+  const { upsertCategory, loading: savingCategory } = useUpsertCategory();
 
-            const uid = user.uid;
+  // ✅ 2) redirect in effect
+  useEffect(() => {
+    if (session.status === 'anon') window.location.href = '/auth';
+  }, [session.status]);
 
-            const snap = await get(ref(db, `users/${uid}`));
-            const userData = snap.val();
+  const isBusy =
+    session.status === 'loading' || catState.status === 'loading' || savingCategory;
 
-            setHouseId(userData?.houseId);
-        });
+  // esempio: totale mese corrente (se usi totalByMonth)
+  const monthKey = useMemo(() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
+  }, []);
 
-        return () => unsubscribe();
-    }, []);
+  const totalThisMonth = useMemo(() => {
+    return (categories ?? []).reduce((sum, c) => {
+      const v = Number(c.totalByMonth?.[monthKey] ?? 0);
+      return sum + (Number.isFinite(v) ? v : 0);
+    }, 0);
+  }, [categories, monthKey]);
 
+  const handleQuickCreateCategory = async () => {
+    if (!houseId || !userId) return;
 
-    // carico categorie + eventi
-    useEffect(() => {
-        if (!houseId) return;
+    const res = await upsertCategory({
+      houseId,
+      name: 'Nuova categoria',
+      type: 'public',
+      creatorId: userId,
+    });
 
-        const load = async () => {
-            setLoading(true);
+    if (!res.ok) {
+      alert(res);
+      return;
+    }
 
-            const catSnap = await get(ref(db, `categories/${houseId}`));
-            const categoriesData = catSnap.val() || {};
-            const categoriesReady = Object.values(categoriesData || {}) as any[];
-            setCategories(categoriesReady.filter(c => c.status !== "DELETED"));
+    nav(`/category/${res.categoryId}`);
+  };
 
-            const evSnap = await get(ref(db, `events/${houseId}`));
-            const eventsData = evSnap.val() || {};
-            const eventsReady = Object.values(eventsData || {}) as any[];
-            setEvents(eventsReady.filter(c => c.status !== "DELETED"));
+  // ✅ 3) dopo gli hook puoi fare return condizionali
+  if (session.status === 'loading') return <div className="p-6">Caricamento...</div>;
 
-            setLoading(false);
-        };
+  return (
+    <div className="min-h-screen bg-gray-100 p-6">
+      <Header title="Dashboard" />
 
-        load();
-    }, [houseId]);
+      <div className="max-w-4xl mx-auto space-y-5">
+        {/* KPI */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <div className="text-gray-500 text-sm">Totale mese ({monthKey})</div>
+            <div className="text-2xl font-bold">€ {totalThisMonth.toFixed(2)}</div>
+          </div>
 
-    const categoriesWithTotals: CategoryWithTotal[] = useMemo(() => {
-
-        console.log("cat", categories);
-        return categories.map((cat) => {
-            const total = events
-                .filter((e) => e.categoryId === cat.id && e.status !== 'DELETED')
-                .reduce((sum, e) => sum + (e.amount || 0), 0);
-
-            return { ...cat, total };
-        });
-    }, [categories, events]);
-
-    const handleCreateCategory = async () => {
-        if (!houseId) return;
-
-        await createCategory({
-            id: '',
-            houseId,
-            title: newCategory.title,
-            desc: newCategory.desc,
-            image: '',
-            createdBy: (await import('firebase/auth')).getAuth().currentUser!.uid,
-            createdAt: Date.now()
-        });
-
-        setShowCreate(false);
-        setNewCategory({ title: '', desc: '' });
-
-        // reload
-        const catSnap = await get(ref(db, `categories/${houseId}`));
-        setCategories(Object.values(catSnap.val() || {}));
-    };
-
-    if (loading) return <div className="p-6">Caricamento dashboard...</div>;
-
-    return (
-        <div className="min-h-screen bg-gray-100 p-6">
-            <Header title="Dashboard" />
-            <div className="max-w-4xl mx-auto">
-                <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-2xl font-bold">Categorie</h1>
-
-                    <button
-                        onClick={() => setShowCreate(true)}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-xl" >
-                        <Plus />
-                    </button>
-                </div>
-
-                <div className="grid gap-4">
-                    {categoriesWithTotals.map((cat) => (
-                        <div
-                            key={cat.id}
-                            onClick={() => navigate(`/category/${cat.id}`)}
-                            className="bg-white p-4 rounded-2xl shadow hover:shadow-lg cursor-pointer flex justify-between"
-                        >
-                            <div>
-                                <div className="font-semibold text-lg">{cat.title}</div>
-                                <div className="text-gray-500 text-sm">{cat.desc}</div>
-                            </div>
-
-                            <div className="text-xl font-bold">
-                                € {cat.total.toFixed(2)}
-                            </div>
-                        </div>
-                    ))}
-                </div>
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
+            <div>
+              <div className="text-gray-500 text-sm">Categorie</div>
+              <div className="text-2xl font-bold">{categories.length}</div>
             </div>
 
-            {showCreate && (
-                <div className="fixed inset-0 p-10 bg-black/40 flex items-center justify-center z-[100]">
-                    <div className="bg-white p-6 rounded-2xl w-full max-w-md ">
-                        <h2 className="text-xl font-bold mb-4">Nuova categoria</h2>
-
-                        <input
-                            placeholder="Titolo"
-                            value={newCategory.title}
-                            onChange={(e) =>
-                                setNewCategory({ ...newCategory, title: e.target.value })
-                            }
-                            className="w-full border p-3 rounded-xl mb-3"
-                        />
-
-                        <input
-                            placeholder="Descrizione"
-                            value={newCategory.desc}
-                            onChange={(e) =>
-                                setNewCategory({ ...newCategory, desc: e.target.value })
-                            }
-                            className="w-full border p-3 rounded-xl mb-4"
-                        />
-
-                        <div className="flex justify-end gap-2">
-                            <button
-                                onClick={() => setShowCreate(false)}
-                                className="px-4 py-2"
-                            >
-                                Annulla
-                            </button>
-
-                            <button
-                                disabled={newCategory.title.length === 0 || newCategory.desc.length === 0}
-                                onClick={handleCreateCategory}
-                                className="bg-blue-600 text-white px-4 py-2 rounded-xl disabled:opacity-50">
-                                Crea
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <button
+              onClick={handleQuickCreateCategory}
+              disabled={isBusy}
+              className={cx(
+                'rounded-xl px-3 py-2 text-white flex items-center gap-2 shadow-sm',
+                isBusy ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+              )}
+              title="Crea categoria"
+            >
+              <Plus size={18} />
+              <span className="hidden sm:inline">Nuova</span>
+            </button>
+          </div>
         </div>
-    );
-}
 
+        {/* LISTA CATEGORIE */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+            <div className="text-lg font-semibold">Categorie</div>
+          </div>
+
+          {catState.status === 'loading' && (
+            <div className="p-5 text-gray-600">Caricamento categorie...</div>
+          )}
+
+          {catState.status !== 'loading' && categories.length === 0 && (
+            <div className="p-5 text-gray-600">
+              Nessuna categoria. Clicca “Nuova” per crearne una.
+            </div>
+          )}
+
+          <div className="divide-y divide-gray-100">
+            {categories.map((c: WithId<DbCategory>) => {
+              const monthTotal = Number(c.totalByMonth?.[monthKey] ?? 0) || 0;
+
+              return (
+                <Link
+                  key={c.id}
+                  to={`/category/${c.id}`}
+                  className="block p-5 hover:bg-gray-50 transition"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0">
+                      <div className="font-semibold truncate">{c.name}</div>
+                      <div className="text-sm text-gray-600">
+                        {c.type === 'private' ? 'Privata' : 'Pubblica'}
+                      </div>
+                    </div>
+
+                    <div className="text-sm font-semibold">€ {monthTotal.toFixed(2)}</div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
