@@ -27,9 +27,16 @@ export default function DashboardPage() {
   const upsertCategory = useCategoriesStore(s => s.upsertCategory);
 
   useEffect(() => {
-    if (session.status === 'anon') window.location.href = '/auth';
-    connect(houseId, userId);
-  }, [session.status]);
+    if (session.status === 'anon') {
+      window.location.href = '/auth';
+      return;
+    }
+
+    if (houseId && userId) {
+      connect(houseId, userId);
+    }
+  }, [session.status, houseId, userId, connect]);
+
 
   const isBusy = session.status === 'loading' || status === "loading";
 
@@ -96,7 +103,7 @@ export default function DashboardPage() {
             <div className="p-5 text-gray-600">Caricamento categorie...</div>
           )}
 
-          {status != "loading" && categories.length === 0 && (
+          {status !== "loading" && categories.length === 0 && (
             <div className="p-5 text-gray-600">
               Nessuna categoria. Clicca “Nuova” per crearne una.
             </div>
