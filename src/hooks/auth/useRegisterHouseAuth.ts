@@ -71,19 +71,6 @@ export function useRegisterHouseAuth() {
         createdAt: now,
       };
 
-      console.log("house");
-      console.log(houseId);
-      console.log(house);
-      console.log(user);
-      console.log(DbPaths.house(houseId));
-      console.log(DbPaths.user(userId));
-      console.log(DbPaths.emailToUserId(email));
-
-      console.log("end", {
-        [DbPaths.house(houseId)]: house,
-        [DbPaths.user(userId)]: user,
-        [DbPaths.emailToUserId(email)]: userId,
-      })
       // ✅ multi-location update atomico
       await dbUpdate("/", {
         [DbPaths.house(houseId)]: house,

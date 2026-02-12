@@ -1,16 +1,15 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Header from '../components/header';
 import { Pencil, Plus, Eye, Trash2, CheckCircle2, Clock3 } from 'lucide-react';
 import { WithId, DbCategory, HouseEvent } from '../firebase/type';
 import { useLoadSessionByAuth } from '../hooks/auth/useLoadSessionByAuth';
-import { useCategories } from '../hooks/categories/useCategories';
-import { useUpsertCategory } from '../hooks/categories/useUpsertCategory';
 import { useCategoryEvents } from '../hooks/events/useCategoryEvents';
 import { useDeleteCategoryEvent } from '../hooks/events/useDeleteCategoryEvent';
 import { useUpsertCategoryEvent } from '../hooks/events/useUpsertCategoryEvent';
+import { useCategoriesStore } from '../hooks/categories/useCategories';
 
 
 type UiEventStatus = 'pending' | 'complete';
@@ -29,26 +28,20 @@ export default function CategoryPage() {
   const categoryId = (params?.categoryId as string | undefined)?.trim() ?? '';
   const navigate = useNavigate();
 
-  // ✅ 1) SEMPRE chiamare gli hook (ordine fisso)
   const { state: session } = useLoadSessionByAuth();
 
-  // ✅ parametri safe (vuoti finché non pronti)
   const houseId = session.status === 'ready' ? session.user.houseId : '';
   const userId = session.status === 'ready' ? session.userId : '';
   const year = new Date().getFullYear();
 
-  const { state: catState, categories } = useCategories(houseId);
-  const { upsertCategory, loading: savingCategory } = useUpsertCategory();
+  const categories = useCategoriesStore(s => s.items);
+  const status = useCategoriesStore(s => s.status);
+  const upsertCategory = useCategoriesStore(s => s.upsertCategory);
 
-  const { state: evState, events } = useCategoryEvents({
-    houseId,
-    categoryId,
-    year,
-  });
+  const { state: evState, events } = useCategoryEvents({ houseId, categoryId, year });
   const { upsertEvent, loading: savingEvent } = useUpsertCategoryEvent();
   const { deleteEvent, loading: deletingEvent } = useDeleteCategoryEvent();
 
-  // ✅ 2) redirect SOLO in effect (mai nel render)
   useEffect(() => {
     if (session.status === 'anon') {
       window.location.href = '/auth';
@@ -65,9 +58,8 @@ export default function CategoryPage() {
 
   const isBusy =
     session.status === 'loading' ||
-    catState.status === 'loading' ||
+    status === 'loading' ||
     evState.status === 'loading' ||
-    savingCategory ||
     savingEvent ||
     deletingEvent;
 
@@ -230,7 +222,7 @@ export default function CategoryPage() {
   if (session.status === 'loading') return <div className="p-6">Caricamento sessione...</div>;
   if (!categoryId) return <div className="p-6">Categoria non valida.</div>;
 
-  if (catState.status !== 'loading' && !category) {
+  if (status !== 'loading' && !category) {
     return (
       <div className="min-h-screen bg-gray-100 p-6">
         <Header title="Dettaglio Categoria" />

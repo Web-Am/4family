@@ -38,6 +38,7 @@ export function useJoinHouseAuth() {
       const cred = await createUserWithEmailAndPassword(firebaseAuth, email, password);
       const userId = cred.user.uid;
 
+      console.log(userId)
       const existing = await dbGet<AppUser>(DbPaths.user(userId));
       if (existing?.houseId) return { ok: false, error: "USER_ALREADY_INITIALIZED" };
 
@@ -51,7 +52,14 @@ export function useJoinHouseAuth() {
         createdAt: now,
       };
 
-      await dbUpdate("", {
+      console.log("DbPaths.emailToUserId(email)");
+      console.log(DbPaths.emailToUserId(email));
+      console.log({
+        [DbPaths.user(userId)]: user,
+        [DbPaths.houseUserRole(houseId, userId)]: "member",
+        [DbPaths.emailToUserId(email)]: userId,
+      });
+      await dbUpdate("/", {
         [DbPaths.user(userId)]: user,
         [DbPaths.houseUserRole(houseId, userId)]: "member",
         [DbPaths.emailToUserId(email)]: userId,
@@ -59,6 +67,7 @@ export function useJoinHouseAuth() {
 
       return { ok: true, userId, houseId };
     } catch (err: any) {
+      console.log(err);
       return { ok: false, error: String(err?.message ?? err) };
     } finally {
       setLoading(false);

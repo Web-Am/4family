@@ -18,7 +18,6 @@ export default function Header({ title }: HeaderProps) {
     const house = (session && (session as any).house) ? (session as any).house : null;
 
     const isDashboard = location.pathname === "/dashboard";
-    console.log(session);
 
     const handleLogout = async () => {
         await signOut(firebaseAuth);
@@ -33,8 +32,8 @@ export default function Header({ title }: HeaderProps) {
         <header className="mb-6 rounded-lg w-full bg-white shadow-md px-6 py-4 flex justify-between items-center sticky top-0 z-50">
             <div className="flex items-center gap-4">
                 <div>
-                    <h1 className="text-xl font-bold">{title || "La tua Casa"} </h1>
-                    <em className="text-xs">{house?.shareCode}</em>
+                     <h1 className="text-xl font-bold">{title || "La tua Casa"} </h1>
+                    <em className="text-xs">{(session as any)?.user?.email} [<b>{house?.shareCode}</b>]</em>
                 </div>
             </div>
 

@@ -52,7 +52,7 @@ export function useUpsertCategoryEvent() {
 
         const model: HouseEvent = {
           title,
-          description: description || undefined,
+          description: description || "",
           amount,
           status,
           creatorId,
@@ -60,7 +60,7 @@ export function useUpsertCategoryEvent() {
           updatedAt: now,
           occurredAt,
         };
-
+console.log();
         await dbSet(DbPaths.categoryEvent(houseId, categoryId, year, newId), model);
 
         if (status === "complete") {
@@ -100,7 +100,7 @@ export function useUpsertCategoryEvent() {
 
       await dbUpdate(DbPaths.categoryEvent(houseId, categoryId, year, eventId), {
         title,
-        description: description || null,
+        description: description || "",
         amount,
         status,
         creatorId,
@@ -110,6 +110,7 @@ export function useUpsertCategoryEvent() {
 
       return { ok: true, eventId, year };
     } catch (err: any) {
+      console.log(err)
       return { ok: false, error: String(err?.message ?? err) };
     } finally {
       setLoading(false);
