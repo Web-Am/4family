@@ -31,7 +31,7 @@ export default function DashboardPage() {
     connect(houseId, userId);
   }, [session.status]);
 
-  const isBusy = session.status === 'loading' || status == "loading";
+  const isBusy = session.status === 'loading' || status === "loading";
 
   const monthKey = useMemo(() => {
     const d = new Date();
@@ -92,7 +92,7 @@ export default function DashboardPage() {
             <div className="text-lg font-semibold">Categorie</div>
           </div>
 
-          {status == "loading" && (
+          {status === "loading" && (
             <div className="p-5 text-gray-600">Caricamento categorie...</div>
           )}
 
@@ -111,7 +111,7 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <div className="min-w-0">
                       <div className="font-semibold truncate">{c.name}</div>
-                      {c.type == "private" && <div className="text-xs bg-red-200 rounded-lg px-4 py-1 text-gray-800">
+                      {c.type === "private" && <div className="text-xs bg-red-200 rounded-lg px-4 py-1 text-gray-800">
                         Privata
                       </div>}
                     </div>
