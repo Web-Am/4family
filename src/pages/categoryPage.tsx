@@ -11,16 +11,42 @@ import { useDeleteCategoryEvent } from '../hooks/events/useDeleteCategoryEvent';
 import { useUpsertCategoryEvent } from '../hooks/events/useUpsertCategoryEvent';
 import { useCategoriesStore } from '../hooks/categories/useCategories';
 
-
 type UiEventStatus = 'pending' | 'complete';
 
 function cx(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(' ');
 }
 
-function currency(n: number) {
-  const v = Number.isFinite(n) ? n : 0;
-  return v.toFixed(2);
+const currency = (n: number) =>
+  new Intl.NumberFormat('it-IT', {
+    style: 'currency',
+    currency: 'EUR',
+  }).format(Number.isFinite(n) ? n : 0);
+
+type ModalProps = {
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+  z?: number;
+};
+
+function Modal({ open, onClose, children, z = 100 }: ModalProps) {
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/40 flex items-center justify-center p-6"
+      style={{ zIndex: z }}
+      onClick={onClose}
+    >
+      <div
+        className="bg-white dark:bg-gray-800 w-full max-w-md rounded-2xl p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </div>
+  );
 }
 
 export default function CategoryPage() {
@@ -34,9 +60,10 @@ export default function CategoryPage() {
   const userId = session.status === 'ready' ? session.userId : '';
   const year = new Date().getFullYear();
 
-  const categories = useCategoriesStore(s => s.items);
-  const status = useCategoriesStore(s => s.status);
-  const upsertCategory = useCategoriesStore(s => s.upsertCategory);
+  const categories = useCategoriesStore((s) => s.items);
+  const status = useCategoriesStore((s) => s.status);
+  const upsertCategory = useCategoriesStore((s) => s.upsertCategory);
+  const deleteCategory = useCategoriesStore(s => s.deleteCategory);
 
   const { state: evState, events } = useCategoryEvents({ houseId, categoryId, year });
   const { upsertEvent, loading: savingEvent } = useUpsertCategoryEvent();
@@ -48,20 +75,21 @@ export default function CategoryPage() {
     }
   }, [session.status]);
 
-  // Delete confirms
   const [confirmDeleteCategory, setConfirmDeleteCategory] = useState(false);
   const [deleteCategoryArmed, setDeleteCategoryArmed] = useState(false);
 
   const [confirmDeleteEvent, setConfirmDeleteEvent] = useState(false);
   const [deleteEventArmed, setDeleteEventArmed] = useState(false);
 
-
-  const isBusy =
-    session.status === 'loading' ||
-    status === 'loading' ||
-    evState.status === 'loading' ||
-    savingEvent ||
-    deletingEvent;
+  const isBusy = useMemo(
+    () =>
+      session.status === 'loading' ||
+      status === 'loading' ||
+      evState.status === 'loading' ||
+      savingEvent ||
+      deletingEvent,
+    [session.status, status, evState.status, savingEvent, deletingEvent]
+  );
 
   const category: WithId<DbCategory> | null = useMemo(() => {
     if (!categoryId) return null;
@@ -72,7 +100,6 @@ export default function CategoryPage() {
     return (events ?? []).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   }, [events]);
 
-  // Modals + forms
   const [showCreate, setShowCreate] = useState(false);
   const [showEditCategory, setShowEditCategory] = useState(false);
   const [showEventModal, setShowEventModal] = useState(false);
@@ -101,20 +128,29 @@ export default function CategoryPage() {
     occurredAt: Date.now(),
   });
 
+  const closeEventModal = () => {
+    setShowEventModal(false);
+    setSelectedEvent(null);
+    setConfirmDeleteEvent(false);
+    setDeleteEventArmed(false);
+  };
+
+  const closeCategoryModal = () => {
+    setShowEditCategory(false);
+    setConfirmDeleteCategory(false);
+    setDeleteCategoryArmed(false);
+  };
+
   const openEditCategory = () => {
     if (!category) return;
     setEditCategory({
       name: category.name ?? '',
       type: category.type ?? 'public',
     });
-
-    // reset conferma delete
     setConfirmDeleteCategory(false);
     setDeleteCategoryArmed(false);
-
     setShowEditCategory(true);
   };
-
 
   const handleSaveCategory = async () => {
     if (!houseId || !userId || !categoryId) return;
@@ -131,9 +167,18 @@ export default function CategoryPage() {
     setShowEditCategory(false);
   };
 
-  // ⚠️ Delete categoria: hook non presente nel set che abbiamo fatto.
   const handleDeleteCategory = async () => {
-    alert('Delete categoria non implementato nei hook. Se vuoi lo aggiungo (useDeleteCategory).');
+
+    if (!houseId || !userId || !categoryId) return;
+
+    const res = await deleteCategory({
+      houseId,
+      categoryId,
+    });
+
+    if (!res.ok) return alert(res);
+    setShowEditCategory(false);
+
   };
 
   const handleCreateEvent = async () => {
@@ -164,8 +209,6 @@ export default function CategoryPage() {
 
   const openEventModal = (ev: WithId<HouseEvent>) => {
     setSelectedEvent(ev);
-
-    // reset conferma delete
     setConfirmDeleteEvent(false);
     setDeleteEventArmed(false);
 
@@ -179,7 +222,6 @@ export default function CategoryPage() {
 
     setShowEventModal(true);
   };
-
 
   const handleSaveEvent = async () => {
     if (!houseId || !userId || !categoryId || !selectedEvent) return;
@@ -218,19 +260,16 @@ export default function CategoryPage() {
     setSelectedEvent(null);
   };
 
-  // ✅ 3) Da qui in poi render “safe”
   if (session.status === 'loading') return <div className="p-6">Caricamento sessione...</div>;
   if (!categoryId) return <div className="p-6">Categoria non valida.</div>;
 
   if (status !== 'loading' && !category) {
     return (
-      <div className="min-h-screen bg-gray-100 p-6">
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-800 p-6">
         <Header title="Dettaglio Categoria" />
-        <div className="max-w-3xl mx-auto bg-white rounded-2xl p-6 shadow border border-gray-100">
+        <div className="max-w-3xl mx-auto bg-white rounded-2xl p-6 shadow border border-gray-100 dark:bg-gray-800">
           <div className="text-lg font-semibold">Categoria non trovata</div>
-          <div className="text-sm text-gray-600 mt-1">
-            L&apos;ID categoria non esiste o non hai accesso.
-          </div>
+          <div className="text-sm mt-1">L&apos;ID categoria non esiste o non hai accesso.</div>
           <button
             className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-xl"
             onClick={() => navigate('/dashboard')}
@@ -243,15 +282,14 @@ export default function CategoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-700 p-6">
       <Header title="Dettaglio Categoria" />
 
       <div className="max-w-3xl mx-auto">
-        {/* HEADER */}
-        <div className="mb-5 rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
+        <div className="mb-5 rounded-2xl bg-white p-5 dark:bg-gray-800 shadow-sm border border-gray-100">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <div className="text-xs text-gray-500">Categoria</div>
+              <div className="text-xs text-gray-500 dark:text-gray-100">Categoria</div>
               <div className="text-xl font-bold">{category?.name ?? '—'}</div>
               <div className="mt-1 inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">
                 {category?.type === 'private' ? 'Privata' : 'Pubblica'}
@@ -266,7 +304,6 @@ export default function CategoryPage() {
                   'rounded-xl px-3 py-2 text-white shadow-sm transition flex items-center gap-2',
                   isBusy ? 'bg-gray-300 cursor-not-allowed' : 'bg-yellow-600 hover:bg-yellow-700'
                 )}
-                title="Modifica categoria"
               >
                 <Pencil size={18} />
                 <span className="hidden sm:inline">Modifica</span>
@@ -279,7 +316,6 @@ export default function CategoryPage() {
                   'rounded-xl px-3 py-2 text-white shadow-sm transition flex items-center gap-2',
                   isBusy ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
                 )}
-                title="Nuovo evento"
               >
                 <Plus size={18} />
                 <span className="hidden sm:inline">Nuovo</span>
@@ -288,13 +324,11 @@ export default function CategoryPage() {
           </div>
         </div>
 
-        {/* TOTAL */}
-        <div className="bg-white p-4 rounded-2xl shadow mb-4 border border-gray-100">
-          <div className="text-gray-500">Totale spesa (anno {year})</div>
-          <div className="text-2xl font-bold">€ {currency(total)}</div>
+        <div className="bg-white p-4 rounded-2xl shadow mb-4 border border-gray-100 dark:bg-gray-800">
+          <div className="text-gray-500 dark:text-gray-100">Totale spesa (anno {year})</div>
+          <div className="text-2xl font-bold">{currency(total)}</div>
         </div>
 
-        {/* EVENTS */}
         <div className="grid gap-3">
           {(evState.status === 'loading' || isBusy) && (
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
@@ -303,7 +337,7 @@ export default function CategoryPage() {
           )}
 
           {evState.status !== 'loading' && (events?.length ?? 0) === 0 && (
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-gray-600">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border dark:text-gray-100 dark:bg-gray-800 dark:border-gray-900 border-gray-100 text-gray-600">
               Nessun evento per questa categoria.
             </div>
           )}
@@ -311,8 +345,8 @@ export default function CategoryPage() {
           {(events ?? []).map((e) => {
             const bg =
               e.status === 'complete'
-                ? 'bg-green-50 border-green-200'
-                : 'bg-yellow-50 border-yellow-200';
+                ? 'bg-green-50 hover:bg-green-100 border-green-200 dark:bg-green-800 hover:dark:bg-green-900'
+                : 'bg-yellow-50 hover:bg-yellow-100 border-yellow-200 dark:bg-yellow-800 hover:dark:bg-yellow-900';
 
             const Icon = e.status === 'complete' ? CheckCircle2 : Clock3;
 
@@ -323,21 +357,24 @@ export default function CategoryPage() {
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <Icon size={18} className="text-gray-700" />
-                    <div className="font-semibold text-lg truncate">{e.title}</div>
+                    <Icon size={18} className="text-gray-700 dark:text-gray-100" />
+                    <div className="font-semibold dark:text-gray-100 text-lg truncate">{e.title}</div>
                   </div>
 
                   {e.description && (
-                    <div className="text-gray-600 text-sm mt-1 line-clamp-2">{e.description}</div>
+                    <div className="text-gray-600 dark:text-gray-100 text-sm mt-1 line-clamp-2">
+                      {e.description}
+                    </div>
                   )}
 
-                  <div className="text-sm mt-2 font-semibold">€ {currency(Number(e.amount) || 0)}</div>
+                  <div className="text-sm mt-2 font-semibold">
+                    {currency(Number(e.amount) || 0)}
+                  </div>
                 </div>
 
                 <button
                   onClick={() => openEventModal(e)}
-                  className="bg-white/70 hover:bg-white p-2 rounded-xl transition"
-                  title="Dettaglio / modifica"
+                  className="bg-white/70 hover:bg-white p-2 rounded-xl transition dark:bg-gray-700 hover:dark:bg-gray-800"
                 >
                   <Eye size={18} />
                 </button>
@@ -347,16 +384,17 @@ export default function CategoryPage() {
         </div>
       </div>
 
-
-      {/* MODALE EVENTO */}
-      {showEventModal && selectedEvent && (
-        <div className="fixed inset-0 bg-black/40 z-[120] flex items-center justify-center p-6">
-          <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-xl">
+      <Modal
+        open={showEventModal && !!selectedEvent}
+        onClose={closeEventModal}
+        z={120}
+      >
+        {selectedEvent && (
+          <>
             {!confirmDeleteEvent ? (
               <>
                 <h2 className="text-xl font-bold mb-4">Evento</h2>
 
-                {/* ✅ VIEW MODE se complete: input readOnly + nessun onChange */}
                 {isEventComplete ? (
                   <>
                     <div className="mb-3">
@@ -376,7 +414,7 @@ export default function CategoryPage() {
                     <div className="mb-3">
                       <div className="text-xs text-gray-500 mb-1">Importo</div>
                       <div className="w-full border p-3 rounded-xl bg-gray-50 text-gray-800">
-                        € {currency(Number(editEvent.amount) || 0)}
+                        {currency(Number(editEvent.amount) || 0)}
                       </div>
                     </div>
 
@@ -389,33 +427,41 @@ export default function CategoryPage() {
                   </>
                 ) : (
                   <>
-                    {/* ✅ EDIT MODE (pending) */}
                     <input
                       placeholder="Titolo"
                       value={editEvent.title}
                       onChange={(e) => setEditEvent((s) => ({ ...s, title: e.target.value }))}
-                      className="w-full border p-3 rounded-xl mb-3"
+                      className="w-full border p-3 rounded-xl mb-3 dark:bg-gray-800 dark:text-gray-100"
                     />
 
                     <input
                       placeholder="Descrizione"
                       value={editEvent.description}
-                      onChange={(e) => setEditEvent((s) => ({ ...s, description: e.target.value }))}
-                      className="w-full border p-3 rounded-xl mb-3"
+                      onChange={(e) =>
+                        setEditEvent((s) => ({ ...s, description: e.target.value }))
+                      }
+                      className="w-full border p-3 rounded-xl mb-3 dark:bg-gray-800 dark:text-gray-100"
                     />
 
                     <input
                       type="number"
                       placeholder="Importo"
                       value={editEvent.amount}
-                      onChange={(e) => setEditEvent((s) => ({ ...s, amount: Number(e.target.value) }))}
-                      className="w-full border p-3 rounded-xl mb-3"
+                      onChange={(e) =>
+                        setEditEvent((s) => ({ ...s, amount: Number(e.target.value) }))
+                      }
+                      className="w-full border p-3 rounded-xl mb-3 dark:bg-gray-800 dark:text-gray-100"
                     />
 
                     <select
                       value={editEvent.status}
-                      onChange={(e) => setEditEvent((s) => ({ ...s, status: e.target.value as UiEventStatus }))}
-                      className="w-full border p-3 rounded-xl mb-4"
+                      onChange={(e) =>
+                        setEditEvent((s) => ({
+                          ...s,
+                          status: e.target.value as UiEventStatus,
+                        }))
+                      }
+                      className="w-full border p-3 rounded-xl mb-3 dark:bg-gray-800 dark:text-gray-100"
                     >
                       <option value="pending">PENDING</option>
                       <option value="complete">COMPLETED</option>
@@ -423,7 +469,6 @@ export default function CategoryPage() {
                   </>
                 )}
 
-                {/* FOOTER */}
                 <div className="flex justify-between items-center">
                   <button
                     onClick={() => {
@@ -441,19 +486,10 @@ export default function CategoryPage() {
                   </button>
 
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        setShowEventModal(false);
-                        setSelectedEvent(null);
-                        setConfirmDeleteEvent(false);
-                        setDeleteEventArmed(false);
-                      }}
-                      className="px-4 py-2"
-                    >
+                    <button onClick={closeEventModal} className="px-4 py-2">
                       Chiudi
                     </button>
 
-                    {/* ✅ Se complete: niente Salva */}
                     {!isEventComplete && (
                       <button
                         onClick={handleSaveEvent}
@@ -471,14 +507,17 @@ export default function CategoryPage() {
               </>
             ) : (
               <>
-                {/* ✅ vista conferma delete */}
-                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
-                  <div className="font-semibold">Attenzione</div>
-                  <div className="text-sm mt-1">Stai per eliminare definitivamente questo evento.</div>
+                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700 dark:bg-red-800">
+                  <div className="font-semibold dark:text-gray-100">Attenzione</div>
+                  <div className="text-sm mt-1 dark:text-gray-100">
+                    Stai per eliminare definitivamente questo evento.
+                  </div>
                 </div>
 
                 <label className="flex items-center justify-between gap-3 mb-4">
-                  <span className="font-semibold text-gray-800">Elimina</span>
+                  <span className="font-semibold text-gray-800 dark:text-gray-100">
+                    Elimina
+                  </span>
                   <input
                     type="checkbox"
                     checked={deleteEventArmed}
@@ -502,10 +541,10 @@ export default function CategoryPage() {
                     onClick={handleDeleteEvent}
                     disabled={isBusy || !deleteEventArmed}
                     className={cx(
-                      'inline-flex items-center gap-2 rounded-xl px-4 py-2 text-white',
+                      'inline-flex items-center gap-2 rounded-xl px-4 py-2 text-white dark:text-gray-100',
                       isBusy || !deleteEventArmed
-                        ? 'bg-gray-300 cursor-not-allowed'
-                        : 'bg-red-600 hover:bg-red-700'
+                        ? 'bg-gray-300 cursor-not-allowed dark:text-gray-800'
+                        : 'bg-red-600 hover:bg-red-700 dark:bg-red-800'
                     )}
                   >
                     <Trash2 size={18} />
@@ -514,178 +553,178 @@ export default function CategoryPage() {
                 </div>
               </>
             )}
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
 
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} z={100}>
+        <>
+          <h2 className="text-xl font-bold mb-4">Nuovo evento</h2>
 
+          <input
+            placeholder="Titolo"
+            value={newEvent.title}
+            onChange={(e) => setNewEvent((s) => ({ ...s, title: e.target.value }))}
+            className="w-full border p-3 rounded-xl mb-3 dark:bg-gray-800 dark:text-gray-100"
+          />
 
-      {/* MODALE CREATE EVENT */}
-      {showCreate && (
-        <div className="fixed inset-0 p-10 bg-black/40 flex items-center justify-center z-[100]">
-          <div className="bg-white p-6 rounded-2xl w-full max-w-md shadow-xl">
-            <h2 className="text-xl font-bold mb-4">Nuovo evento</h2>
+          <input
+            placeholder="Descrizione"
+            value={newEvent.description}
+            onChange={(e) =>
+              setNewEvent((s) => ({ ...s, description: e.target.value }))
+            }
+            className="w-full border p-3 rounded-xl mb-3 dark:bg-gray-800 dark:text-gray-100"
+          />
 
-            <input
-              placeholder="Titolo"
-              value={newEvent.title}
-              onChange={(e) => setNewEvent((s) => ({ ...s, title: e.target.value }))}
-              className="w-full border p-3 rounded-xl mb-3"
-            />
+          <input
+            type="number"
+            placeholder="Importo"
+            value={newEvent.amount}
+            onChange={(e) =>
+              setNewEvent((s) => ({ ...s, amount: Number(e.target.value) }))
+            }
+            className="w-full border p-3 rounded-xl mb-3 dark:bg-gray-800 dark:text-gray-100"
+          />
 
-            <input
-              placeholder="Descrizione"
-              value={newEvent.description}
-              onChange={(e) => setNewEvent((s) => ({ ...s, description: e.target.value }))}
-              className="w-full border p-3 rounded-xl mb-3"
-            />
+          <select
+            value={newEvent.status}
+            onChange={(e) =>
+              setNewEvent((s) => ({ ...s, status: e.target.value as UiEventStatus }))
+            }
+            className="w-full border p-3 rounded-xl mb-3 dark:bg-gray-800 dark:text-gray-100"
+          >
+            <option value="pending">PENDING</option>
+            <option value="complete">COMPLETED</option>
+          </select>
 
-            <input
-              type="number"
-              placeholder="Importo"
-              value={newEvent.amount}
-              onChange={(e) => setNewEvent((s) => ({ ...s, amount: Number(e.target.value) }))}
-              className="w-full border p-3 rounded-xl mb-4"
-            />
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setShowCreate(false)} className="px-4 py-2">
+              Annulla
+            </button>
 
-            <select
-              value={newEvent.status}
-              onChange={(e) => setNewEvent((s) => ({ ...s, status: e.target.value as UiEventStatus }))}
-              className="w-full border p-3 rounded-xl mb-4"
+            <button
+              onClick={handleCreateEvent}
+              disabled={isBusy}
+              className={cx(
+                'bg-blue-600 text-white px-4 py-2 rounded-xl',
+                isBusy && 'opacity-60 cursor-not-allowed'
+              )}
             >
-              <option value="pending">PENDING</option>
-              <option value="complete">COMPLETED</option>
-            </select>
-
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setShowCreate(false)} className="px-4 py-2">
-                Annulla
-              </button>
-
-              <button
-                onClick={handleCreateEvent}
-                disabled={isBusy}
-                className={cx('bg-blue-600 text-white px-4 py-2 rounded-xl', isBusy && 'opacity-60 cursor-not-allowed')}
-              >
-                Crea evento
-              </button>
-            </div>
+              Crea evento
+            </button>
           </div>
-        </div>
-      )}
+        </>
+      </Modal>
 
-      {/* MODALE EDIT CATEGORY */}
-      {showEditCategory && (
-        <div className="fixed inset-0 bg-black/40 z-[110] flex items-center justify-center p-6">
-          <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-xl">
-            {!confirmDeleteCategory ? (
-              <>
-                <h2 className="text-xl font-bold mb-4">Modifica categoria</h2>
+      <Modal open={showEditCategory} onClose={closeCategoryModal} z={110}>
+        <>
+          {!confirmDeleteCategory ? (
+            <>
+              <h2 className="text-xl font-bold mb-4 dark:text-gray-100">
+                Modifica categoria
+              </h2>
 
-                <input
-                  placeholder="Nome categoria"
-                  value={editCategory.name}
-                  onChange={(e) => setEditCategory((s) => ({ ...s, name: e.target.value }))}
-                  className="w-full border p-3 rounded-xl mb-3"
-                />
+              <input
+                placeholder="Nome categoria"
+                value={editCategory.name}
+                onChange={(e) =>
+                  setEditCategory((s) => ({ ...s, name: e.target.value }))
+                }
+                className="w-full border p-3 rounded-xl mb-3 dark:bg-gray-800 dark:text-gray-100"
+              />
 
-                <select
-                  value={editCategory.type}
-                  onChange={(e) => setEditCategory((s) => ({ ...s, type: e.target.value as any }))}
-                  className="w-full border p-3 rounded-xl mb-4"
+              <select
+                value={editCategory.type}
+                onChange={(e) =>
+                  setEditCategory((s) => ({ ...s, type: e.target.value as any }))
+                }
+                className="w-full border p-3 rounded-xl mb-3 dark:bg-gray-800 dark:text-gray-100"
+              >
+                <option value="public">Pubblica</option>
+                <option value="private">Privata</option>
+              </select>
+
+              <div className="flex justify-between">
+                <button
+                  onClick={() => {
+                    setConfirmDeleteCategory(true);
+                    setDeleteCategoryArmed(false);
+                  }}
+                  className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl"
                 >
-                  <option value="public">Pubblica</option>
-                  <option value="private">Privata</option>
-                </select>
+                  <Trash2 size={18} />
+                  Elimina
+                </button>
 
-                <div className="flex justify-between">
-                  <button
-                    onClick={() => {
-                      setConfirmDeleteCategory(true);
-                      setDeleteCategoryArmed(false);
-                    }}
-                    className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl"
-                  >
-                    <Trash2 size={18} />
-                    Elimina
-                  </button>
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        setShowEditCategory(false);
-                        setConfirmDeleteCategory(false);
-                        setDeleteCategoryArmed(false);
-                      }}
-                      className="px-4 py-2"
-                    >
-                      Annulla
-                    </button>
-
-                    <button
-                      onClick={handleSaveCategory}
-                      disabled={isBusy}
-                      className={cx(
-                        'bg-blue-600 text-white px-4 py-2 rounded-xl',
-                        isBusy && 'opacity-60 cursor-not-allowed'
-                      )}
-                    >
-                      Salva
-                    </button>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                {/* ✅ vista conferma delete: spariscono i campi */}
-                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
-                  <div className="font-semibold">Attenzione</div>
-                  <div className="text-sm mt-1">
-                    Stai per eliminare definitivamente questa categoria e i suoi dati associati.
-                  </div>
-                </div>
-
-                <label className="flex items-center justify-between gap-3 mb-4">
-                  <span className="font-semibold text-gray-800">Elimina</span>
-                  <input
-                    type="checkbox"
-                    checked={deleteCategoryArmed}
-                    onChange={(e) => setDeleteCategoryArmed(e.target.checked)}
-                    className="h-5 w-5"
-                  />
-                </label>
-
-                <div className="flex justify-between items-center">
-                  <button
-                    onClick={() => {
-                      setConfirmDeleteCategory(false);
-                      setDeleteCategoryArmed(false);
-                    }}
-                    className="px-4 py-2"
-                  >
-                    Indietro
+                <div className="flex gap-2">
+                  <button onClick={closeCategoryModal} className="px-4 py-2">
+                    Annulla
                   </button>
 
                   <button
-                    onClick={handleDeleteCategory}
-                    disabled={isBusy || !deleteCategoryArmed}
+                    onClick={handleSaveCategory}
+                    disabled={isBusy}
                     className={cx(
-                      'inline-flex items-center gap-2 rounded-xl px-4 py-2 text-white',
-                      isBusy || !deleteCategoryArmed
-                        ? 'bg-gray-300 cursor-not-allowed'
-                        : 'bg-red-600 hover:bg-red-700'
+                      'bg-blue-600 text-white px-4 py-2 rounded-xl',
+                      isBusy && 'opacity-60 cursor-not-allowed'
                     )}
                   >
-                    <Trash2 size={18} />
-                    Conferma eliminazione
+                    Salva
                   </button>
                 </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
+                <div className="font-semibold">Attenzione</div>
+                <div className="text-sm mt-1">
+                  Stai per eliminare definitivamente questa categoria e i suoi dati associati.
+                </div>
+              </div>
 
+              <label className="flex items-center justify-between gap-3 mb-4">
+                <span className="font-semibold text-gray-800 dark:text-gray-100">
+                  Elimina
+                </span>
+                <input
+                  type="checkbox"
+                  checked={deleteCategoryArmed}
+                  onChange={(e) => setDeleteCategoryArmed(e.target.checked)}
+                  className="h-5 w-5"
+                />
+              </label>
+
+              <div className="flex justify-between items-center">
+                <button
+                  onClick={() => {
+                    setConfirmDeleteCategory(false);
+                    setDeleteCategoryArmed(false);
+                  }}
+                  className="px-4 py-2"
+                >
+                  Indietro
+                </button>
+
+                <button
+                  onClick={handleDeleteCategory}
+                  disabled={isBusy || !deleteCategoryArmed}
+                  className={cx(
+                    'inline-flex items-center gap-2 rounded-xl px-4 py-2 text-white',
+                    isBusy || !deleteCategoryArmed
+                      ? 'bg-gray-300 cursor-not-allowed'
+                      : 'bg-red-600 hover:bg-red-700'
+                  )}
+                >
+                  <Trash2 size={18} />
+                  Conferma eliminazione
+                </button>
+              </div>
+            </>
+          )}
+        </>
+      </Modal>
     </div>
   );
 }

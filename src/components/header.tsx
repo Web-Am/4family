@@ -1,10 +1,40 @@
 'use client';
 
+import React from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
-import { House, LogOut } from "lucide-react";
+import { House, LogOut, Sun, Moon } from "lucide-react";
 import { firebaseAuth } from "../firebase/firebase";
 import { useLoadSessionByAuth } from "../hooks/auth/useLoadSessionByAuth";
+
+function ThemeToggle(){
+    const [isDark, setIsDark] = React.useState<boolean>(() => {
+        try {
+            const stored = typeof window !== 'undefined' && localStorage.getItem('theme');
+            if (stored) return stored === 'dark';
+            return typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        } catch(e){ return false; }
+    });
+
+    React.useEffect(() => {
+        try{
+            if(isDark) document.documentElement.classList.add('dark');
+            else document.documentElement.classList.remove('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        }catch(e){}
+    }, [isDark]);
+
+    return (
+        <button
+            aria-label="Toggle theme"
+            onClick={() => setIsDark(v => !v)}
+            className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+            title={isDark ? 'Dark' : 'Light'}
+        >
+            {isDark ? <Sun className="text-yellow-400" /> : <Moon className="text-gray-600" />}
+        </button>
+    );
+}
 
 interface HeaderProps {
     title?: string;
@@ -29,7 +59,7 @@ export default function Header({ title }: HeaderProps) {
     };
 
     return (
-        <header className="mb-6 rounded-lg w-full bg-white shadow-md px-6 py-4 flex justify-between items-center sticky top-0 z-50">
+        <header className="mb-6 rounded-lg w-full bg-white dark:bg-gray-800 dark:text-white shadow-md px-6 py-4 flex justify-between items-center sticky top-0 z-50">
             <div className="flex items-center gap-4">
                 <div>
                      <h1 className="text-xl font-bold">{title || "La tua Casa"} </h1>
@@ -37,7 +67,10 @@ export default function Header({ title }: HeaderProps) {
                 </div>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-3 items-center">
+                {/* THEME TOGGLE */}
+                <ThemeToggle />
+
                 {/* HOME: visibile solo se NON sono in dashboard */}
                 {!isDashboard && (
                     <button

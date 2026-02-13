@@ -17,7 +17,7 @@ function App() {
   const SUBSITE = "/";
 
   return <BrowserRouter basename={SUBSITE}>
-    <div className='min-h-screen gradient-grigio-bluastro relative'>
+    <div className='min-h-screen bg-gray-50 dark:bg-slate-900 dark:text-slate-100 relative'>
       <RoutesPages />
     </div>
   </BrowserRouter>

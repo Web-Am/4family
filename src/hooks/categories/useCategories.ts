@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { WithId } from "../../types/db";
 import { DbCategory, CategoryVisibility } from "../../firebase/type";
 import { DbPaths } from "../../firebase/path";
-import { dbSubscribeValue, dbPushKey, dbSet, dbUpdate } from "../../firebase/rtdb";
+import { dbSubscribeValue, dbPushKey, dbSet, dbUpdate, dbRemove } from "../../firebase/rtdb";
 
 type CategoriesState = {
   houseId?: string;
@@ -26,6 +26,11 @@ type CategoriesState = {
     type: CategoryVisibility;
     creatorId: string;
   }) => Promise<{ ok: true; categoryId: string } | { ok: false; error: string }>;
+
+  deleteCategory: (input: {
+    houseId: string;
+    categoryId: string;
+  }) => Promise<{ ok: true } | { ok: false; error: string }>;
 };
 
 export const useCategoriesStore = create<CategoriesState>((set, get) => ({
@@ -39,8 +44,6 @@ export const useCategoriesStore = create<CategoriesState>((set, get) => ({
     if (!hid || !uid) return;
 
     const current = get();
-
-    // ✅ evita doppia subscribe
     if (current.houseId === hid && current.userId === uid && current._unsub) return;
 
     current._unsub?.();
@@ -74,7 +77,6 @@ export const useCategoriesStore = create<CategoriesState>((set, get) => ({
               })
             );
 
-          // dedupe minimale
           const same =
             prev.items.length === itemsMine.length &&
             prev.items.every((p, i) => p.id === itemsMine[i].id);
@@ -137,13 +139,35 @@ export const useCategoriesStore = create<CategoriesState>((set, get) => ({
         type,
         creatorId,
       });
-      set(prev => ({
+
+      set((prev) => ({
         ...prev,
-        items: prev.items.map(c =>
+        items: prev.items.map((c) =>
           c.id === categoryId ? { ...c, name, type, creatorId } : c
         ),
       }));
+
       return { ok: true, categoryId };
+    } catch (err: any) {
+      return { ok: false, error: String(err?.message ?? err) };
+    }
+  },
+
+  deleteCategory: async ({ houseId, categoryId }) => {
+    const hid = (houseId ?? "").trim();
+    const cid = (categoryId ?? "").trim();
+    if (!hid || !cid) return { ok: false, error: "INVALID_INPUT" };
+
+    try {
+      await dbRemove(DbPaths.category(hid, cid));
+
+      set((prev) => ({
+        ...prev,
+        raw: prev.raw.filter((c) => c.id !== cid),
+        items: prev.items.filter((c) => c.id !== cid),
+      }));
+
+      return { ok: true };
     } catch (err: any) {
       return { ok: false, error: String(err?.message ?? err) };
     }

@@ -27,16 +27,9 @@ export default function DashboardPage() {
   const upsertCategory = useCategoriesStore(s => s.upsertCategory);
 
   useEffect(() => {
-    if (session.status === 'anon') {
-      window.location.href = '/auth';
-      return;
-    }
-
-    if (houseId && userId) {
-      connect(houseId, userId);
-    }
-  }, [session.status, houseId, userId, connect]);
-
+    if (session.status === 'anon') window.location.href = '/auth';
+    connect(houseId, userId);
+  }, [session.status]);
 
   const isBusy = session.status === 'loading' || status === "loading";
 
@@ -70,18 +63,18 @@ export default function DashboardPage() {
   if (session.status === 'loading') return <div className="p-6">Caricamento...</div>;
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-700 p-6">
       <Header title="Dashboard" />
       <div className="max-w-4xl mx-auto space-y-5">
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <div className="text-gray-500 text-sm">Totale mese ({monthKey})</div>
-            <div className="text-2xl font-bold">€ {totalThisMonth.toFixed(2)}</div>
+          <div className="bg-white rounded-2xl p-5 shadow-sm border dark:bg-gray-800 border-gray-100">
+            <div className="text-gray-500 dark:text-gray-100 text-sm">Totale mese ({monthKey})</div>
+            <div className="text-2xl font-bold dark:text-white">€ {totalThisMonth.toFixed(2)}</div>
           </div>
 
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
+          <div className="bg-white rounded-2xl p-5 shadow-sm border dark:bg-gray-800 border-gray-100 flex items-center justify-between">
             <div>
-              <div className="text-gray-500 text-sm">Categorie</div>
+              <div className="text-gray-500 text-sm dark:text-gray-100">Categorie</div>
               <div className="text-2xl font-bold">{categories.length}</div>
             </div>
 
@@ -94,8 +87,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+        <div className="bg-white rounded-2xl shadow-sm border dark:bg-gray-800  border-gray-100">
+          <div className="p-5 border-b border-gray-100  flex items-center justify-between">
             <div className="text-lg font-semibold">Categorie</div>
           </div>
 
@@ -114,7 +107,7 @@ export default function DashboardPage() {
               const monthTotal = Number(c.totalByMonth?.[monthKey] ?? 0) || 0;
 
               return (
-                <Link key={c.id} to={`/category/${c.id}`} className="block p-5 hover:bg-gray-50 transition">
+                <Link key={c.id} to={`/category/${c.id}`} className="block p-5 hover:bg-gray-50 hover:dark:bg-gray-500 transition">
                   <div className="flex items-center justify-between">
                     <div className="min-w-0">
                       <div className="font-semibold truncate">{c.name}</div>
