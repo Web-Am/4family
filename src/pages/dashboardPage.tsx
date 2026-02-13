@@ -35,7 +35,7 @@ export default function DashboardPage() {
     if (session.status === "ready" && houseId && userId) {
       connect(houseId, userId);
     }
-  }, [session.status]);
+  }, [session.status, houseId, userId, connect]);
 
 
   const isBusy = session.status === 'loading' || status === "loading";
