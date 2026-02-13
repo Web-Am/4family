@@ -27,9 +27,16 @@ export default function DashboardPage() {
   const upsertCategory = useCategoriesStore(s => s.upsertCategory);
 
   useEffect(() => {
-    if (session.status === 'anon') window.location.href = '/auth';
-    connect(houseId, userId);
+    if (session.status === "anon") {
+      window.location.href = "/auth";
+      return;
+    }
+
+    if (session.status === "ready" && houseId && userId) {
+      connect(houseId, userId);
+    }
   }, [session.status]);
+
 
   const isBusy = session.status === 'loading' || status === "loading";
 
